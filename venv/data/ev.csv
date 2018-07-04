@@ -1,0 +1,4 @@
+Transformer,Maximum power,Plug-in time,Deadline,SOC at arrival,SOC at departure,Battery capacity,Charging efficiency
+1,1,4,0,4,0.1,0.9,10,0.9
+2,2,5,3,5,0.2,0.8,12,0.9
+3,1,6,1,4,0.1,0.95,10,0.8
