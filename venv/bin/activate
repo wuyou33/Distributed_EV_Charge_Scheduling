@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/u6562870/PycharmProjects/Research/EV_charging/MY-WORK/Distributed_EV_Charging/venv"
+VIRTUAL_ENV="/Users/u6562870/PycharmProjects/Research/EV_charging/MY-WORK/Distributed_EV_Charge_Scheduling/venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
