@@ -63,7 +63,7 @@ delta = 1
 
 ''' Base load information '''
 
-df_base_load_collection = pd.read_csv('../data/base_load.csv', sep=',')
+df_base_load_collection = pd.read_csv('../data/base_load_at_transformers.csv', sep=',')
 
 # Get the number of transformers
 m = len(df_base_load_collection['Transformer'].unique())
