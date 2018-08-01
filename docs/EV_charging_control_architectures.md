@@ -4,4 +4,4 @@ EV charging control, in particular, can be implemented in the following ways.
 
 1. Centralized Control Architecture
 
-![alt text](images/Centralized_architecture.png?raw=true "Title")
+![Centralized Control Architecture](https://github.com/nanduni-nin/Distributed_EV_Charge_Scheduling/blob/master/docs/Images/Centralized_architecture.png)
