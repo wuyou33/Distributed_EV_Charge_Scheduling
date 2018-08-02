@@ -22,6 +22,7 @@ def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_ra
         power_req : Total amount of power required by the EV
         plug_in_time : Plug-in time of EV
         plug_out_time : Plug-out time of EV
+            Note: If plug-out time is x, EV can't be charged at time x
         previous_schedule : Charging profile of earlier nth iteration
     Returns:
         new_schedule : Charging profile of (n+1)th iteration (Updated charging rates during each time slot)
@@ -52,7 +53,9 @@ def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_ra
     # Constraint for specifying EV's arrival & departure times
     if plug_in_time != 0:
         constraints.append(new_schedule[:plug_in_time] == 0)
-    if plug_out_time != T:
+    if plug_out_time == (T-1):
+        constraints.append(new_schedule[plug_out_time] == 0)
+    else:
         constraints.append(new_schedule[plug_out_time:] == 0)
 
     # Solve the problem
@@ -140,6 +143,7 @@ t_plug_in = t_plug_in_series.values
 t_plug_out_series = df_ev['Deadline'].astype(int)
 t_plug_out = t_plug_out_series.values
 # Time horizon
+#   Note: If maximum plug_out time is x, Time horizon goes from 1,...,x , however no EVs will be charged at time x
 T = np.max(t_plug_out)+1
 
 
