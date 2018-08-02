@@ -12,14 +12,16 @@ import pandas as pd
 
 #  ---- Start Functions ---- #
 
-def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_rate, power, previous_schedule):
+def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_rate, power_req, plug_in_time, plug_out_time, previous_schedule):
     """ Calculate the optimal charging schedule for an EV using Quadratic Optimization.
 
     Keyword arguments:
         price : Electricity price
         number_of_time_slots : Charging duration
         maximum_charging_rate : Maximum allowable charging rate of the EV
-        power : Total amount of power required by the EV
+        power_req : Total amount of power required by the EV
+        plug_in_time : Plug-in time of EV
+        plug_out_time : Plug-out time of EV
         previous_schedule : Charging profile of earlier nth iteration
     Returns:
         new_schedule : Charging profile of (n+1)th iteration (Updated charging rates during each time slot)
@@ -29,6 +31,9 @@ def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_ra
         Find x(n+1) that,
             Minimize  Σ(Charging cost + penalty term) for t=1,....,number_of_time_slots
             Minimize  Σ {<p(n), (previous_schedule)> + 1/2(new_schedule - previous_schedule)²}
+
+    Assumptions:
+        All EVs are available for negotiation at the beginning of scheduling period
     """
 
     # Define variables for new charging rates during each time slot
@@ -37,8 +42,18 @@ def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_ra
     # Define Objective function
     objective = Minimize(sum(price * new_schedule) + 0.5 * sum_squares(new_schedule - previous_schedule))
 
-    # Define constraints for charging rate limits and total amount of power required
-    constraints = [0.0 <= new_schedule, new_schedule <= maximum_charging_rate, sum(new_schedule) == power]
+    # Define constraints list
+    constraints = []
+    # Constraint for charging rate limits
+    constraints.append(0.0 <= new_schedule)
+    constraints.append(new_schedule <= maximum_charging_rate)
+    # Constraint for total amount of power required
+    constraints.append(sum(new_schedule) == power_req)
+    # Constraint for specifying EV's arrival & departure times
+    if plug_in_time != 0:
+        constraints.append(new_schedule[:plug_in_time] == 0)
+    if plug_out_time != T:
+        constraints.append(new_schedule[plug_out_time:] == 0)
 
     # Solve the problem
     prob = Problem(objective, constraints)
@@ -85,7 +100,7 @@ def calculate_price_signal(N, T, base_load, charging_schedules):
             ev_load[t] += charging_schedules[n][t]
 
     # Calculate total demand at time t (Base load + EV-load)
-    total_load = base_load + ev_load
+    total_load = base_load[:T] + ev_load
 
     # Calculate price signal
     price = Y * (total_load)
@@ -101,9 +116,6 @@ def calculate_price_signal(N, T, base_load, charging_schedules):
 df_base_load = pd.read_csv('../data/base_load.csv', sep=',')
 extract_base_load = df_base_load['Load']
 base_load = extract_base_load.values
-# Time horizon
-T = df_base_load.shape[0]
-
 
 ''' EV Information '''
 df_ev = pd.read_csv('../data/ev.csv', sep=',')
@@ -121,6 +133,14 @@ power_req = power_req_series.values
 # Maximum charging rate of EVs
 p_max_series = df_ev['Maximum power']
 p_max = p_max_series.values
+# Plug-in time of EVs
+t_plug_in_series = df_ev['Plug-in time'].astype(int)
+t_plug_in = t_plug_in_series.values
+# Deadline of EVs
+t_plug_out_series = df_ev['Deadline'].astype(int)
+t_plug_out = t_plug_out_series.values
+# Time horizon
+T = np.max(t_plug_out)+1
 
 
 ''' Algorithm '''
@@ -145,7 +165,7 @@ while True:
     new_charging_schedules = np.zeros(shape=(N, T))
     for n in range(N):
         print('For EV ', n)
-        new_charging_schedules[n] = calculate_charging_schedule(price, T, p_max[n], power_req[n], charging_schedules[n])
+        new_charging_schedules[n] = calculate_charging_schedule(price, T, p_max[n], power_req[n], t_plug_in[n], t_plug_out[n], charging_schedules[n])
 
     # Stopping criterion
     # sqrt{(p(k) - p(k-1))²} <= 0.001, for t=1,...,T
@@ -164,3 +184,12 @@ while True:
         charging_schedules = new_charging_schedules
         previous_price = price
         k += 1
+
+# Remove negative 0 values from output
+charging_schedules[charging_schedules < 0] = 0
+
+# Output result summary
+print('\n\nEV   In   Out  Power  Schedule')
+for i in range(N):
+    print(i+1, '  ', t_plug_in[i], '  ', t_plug_out[i], '  ', np.around(power_req[i], decimals=2), '  ',
+          np.around(charging_schedules[i], decimals=2))
