@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 
 #  ---- Start Functions ---- #
 
-def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_rate, power_req, plug_in_time, plug_out_time, previous_schedule):
+def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_rate, power_req, plug_in_time,
+                                plug_out_time, previous_schedule):
     """ Calculate the optimal charging schedule for an EV using Quadratic Optimization.
 
     Keyword arguments:
@@ -54,9 +55,9 @@ def calculate_charging_schedule(price, number_of_time_slots, maximum_charging_ra
     # Constraint for specifying EV's arrival & departure times
     if plug_in_time != 0:
         constraints.append(new_schedule[:plug_in_time] == 0)
-    if plug_out_time == T-1:
+    if plug_out_time == T - 1:
         constraints.append(new_schedule[plug_out_time] == 0)
-    elif plug_out_time != T :
+    elif plug_out_time != T:
         constraints.append(new_schedule[plug_out_time:] == 0)
 
     # Solve the problem
@@ -113,12 +114,27 @@ def calculate_price_signal(N, T, base_load, charging_schedules):
     return price
 
 
+def roundoff(number, multiple):
+    """ Round the given number to nearest given multiple:
+        number : Number to round
+        multiple : Round to this nearest value
+    Returns:
+        Rounded off value
+    """
+    # Smaller multiple
+    a = (number // multiple) * multiple
+    # Larger multiple
+    b = a + multiple
+    # Return of closest of two
+    return (b if number - a > b - number else a)
+
+
 #  ---- End Functions ---- #
 
 
 ''' Base load '''
-df_base_load = pd.read_csv('../data/base_load.csv', sep=',')
-base_load = np.array(df_base_load['Load'])
+df_base_load = pd.read_csv('../data/base_load_NSW.csv', sep=',')
+base_load = np.array(df_base_load['TOTALDEMAND'])
 
 ''' EV Information '''
 df_ev = pd.read_csv('../data/ev.csv', sep=',')
@@ -164,7 +180,8 @@ while True:
     new_charging_schedules = np.zeros(shape=(N, T))
     for n in range(N):
         print('For EV ', n)
-        new_charging_schedules[n] = calculate_charging_schedule(price, T, p_max[n], power_req[n], t_plug_in[n], t_plug_out[n], charging_schedules[n])
+        new_charging_schedules[n] = calculate_charging_schedule(price, T, p_max[n], power_req[n], t_plug_in[n],
+                                                                t_plug_out[n], charging_schedules[n])
 
     # Stopping criterion
     # sqrt{(p(k) - p(k-1))²} <= 0.001, for t=1,...,T
@@ -189,24 +206,25 @@ charging_schedules[charging_schedules < 0] = 0
 
 '''   Output result summary   '''
 result = np.around(charging_schedules, decimals=2)
-print('\n\nEV   In   Out  Power  Schedule t=(0,...,', T-1,')')
+print('\n\nEV   In   Out  Power  Schedule t=(0,...,', T - 1, ')')
 for n in range(N):
-    print(n+1, '  ', t_plug_in[n], '  ', t_plug_out[n], '  ', np.around(power_req[n], decimals=2), '  ', result[n])
-
+    print(n + 1, '  ', t_plug_in[n], '  ', t_plug_out[n], '  ', np.around(power_req[n], decimals=2), '  ', result[n])
 
 '''   Graphical output   '''
 # Plot
 fig = plt.figure()
+time_horizon = base_load.shape[0]
+charging_horizon = result.shape[1]
 
 # Change of base load
-aggregate_load = np.zeros(base_load.shape)
+aggregate_load = np.zeros(time_horizon)
 aggregate_load += base_load
 
-for t in range(result.shape[1]):
+for t in range(charging_horizon):
     for n in range(N):
         aggregate_load[t] += result[n][t]
-for t in range(result.shape[1], T+1):
-        aggregate_load[t] = base_load[t]
+for t in range(charging_horizon, time_horizon):
+    aggregate_load[t] = base_load[t]
 
 # Charging rate is kept constant during each time interval, so first value of the array is repeated
 # Initial Base load
@@ -217,11 +235,14 @@ aggregate_load = np.insert(aggregate_load, 0, aggregate_load[0])
 # Draw graph
 # Grid lines
 ax = fig.gca()
-ax.set_xticks(np.arange(0, T+2, 1))
-ax.set_yticks(np.arange(0, np.amax(base_load), 10))
+# Round off to nearest multiple of 200
+lower_bound = roundoff(np.amin(base_load),200)
+upper_bound = roundoff(np.amax(base_load),200)
+ax.set_xticks(np.arange(0, time_horizon + 1, 1))
+ax.set_yticks(np.arange(lower_bound, upper_bound, 200))
 # Plot
-plt.step(np.arange(0,T+2,1), base_load, label='Initial load')
-plt.step(np.arange(0,T+2,1), aggregate_load, label='Aggregate load')
+plt.step(np.arange(0, time_horizon + 1, 1), base_load, label='Initial load')
+plt.step(np.arange(0, time_horizon + 1, 1), aggregate_load, label='Aggregate load')
 plt.legend(loc='best')
 plt.xlabel("Time")
 plt.ylabel("Load")
