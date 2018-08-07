@@ -118,31 +118,26 @@ def calculate_price_signal(N, T, base_load, charging_schedules):
 
 ''' Base load '''
 df_base_load = pd.read_csv('../data/base_load.csv', sep=',')
-extract_base_load = df_base_load['Load']
-base_load = extract_base_load.values
+base_load = np.array(df_base_load['Load'])
 
 ''' EV Information '''
 df_ev = pd.read_csv('../data/ev.csv', sep=',')
 # Number of EVs
 N = df_ev.shape[0]
 # SOC of EVs by arrival
-soc_arr = df_ev['SOC at arrival']
+soc_arr = np.array(df_ev['SOC at arrival'])
 # Desired SOC of EVs by departure
-soc_dep = df_ev['SOC at departure']
+soc_dep = np.array(df_ev['SOC at departure'])
 # Battery capacity of EVs
-cap = df_ev['Battery capacity']
+cap = np.array(df_ev['Battery capacity'])
 # Amount of power required by EVs
-power_req_series = cap * (soc_dep - soc_arr)
-power_req = power_req_series.values
+power_req = cap * (soc_dep - soc_arr)
 # Maximum charging rate of EVs
-p_max_series = df_ev['Maximum power']
-p_max = p_max_series.values
+p_max = np.array(df_ev['Maximum power'])
 # Plug-in time of EVs
-t_plug_in_series = df_ev['Plug-in time'].astype(int)
-t_plug_in = t_plug_in_series.values
+t_plug_in = np.array(df_ev['Plug-in time'].astype(int))
 # Deadline of EVs
-t_plug_out_series = df_ev['Deadline'].astype(int)
-t_plug_out = t_plug_out_series.values
+t_plug_out = np.array(df_ev['Deadline'].astype(int))
 # Time horizon
 #   Note: If maximum plug_out time is x, Time horizon goes from 1,...,x-1
 T = np.max(t_plug_out)
