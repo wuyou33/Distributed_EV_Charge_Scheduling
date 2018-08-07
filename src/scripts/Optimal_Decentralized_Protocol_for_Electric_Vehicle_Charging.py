@@ -8,6 +8,7 @@
 from cvxpy import *
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 #  ---- Start Functions ---- #
@@ -191,8 +192,44 @@ while True:
 # Remove negative 0 values from output
 charging_schedules[charging_schedules < 0] = 0
 
-# Output result summary
+'''   Output result summary   '''
+result = np.around(charging_schedules, decimals=2)
 print('\n\nEV   In   Out  Power  Schedule t=(0,...,', T-1,')')
-for i in range(N):
-    print(i+1, '  ', t_plug_in[i], '  ', t_plug_out[i], '  ', np.around(power_req[i], decimals=2), '  ',
-          np.around(charging_schedules[i], decimals=2))
+for n in range(N):
+    print(n+1, '  ', t_plug_in[n], '  ', t_plug_out[n], '  ', np.around(power_req[n], decimals=2), '  ', result[n])
+
+
+'''   Graphical output   '''
+# Plot
+fig = plt.figure()
+
+# Change of base load
+aggregate_load = np.zeros(base_load.shape)
+aggregate_load += base_load
+
+for t in range(result.shape[1]):
+    for n in range(N):
+        aggregate_load[t] += result[n][t]
+for t in range(result.shape[1], T+1):
+        aggregate_load[t] = base_load[t]
+
+# Charging rate is kept constant during each time interval, so first value of the array is repeated
+# Initial Base load
+base_load = np.insert(base_load, 0, base_load[0])
+# Aggregate load
+aggregate_load = np.insert(aggregate_load, 0, aggregate_load[0])
+
+# Draw graph
+# Grid lines
+ax = fig.gca()
+ax.set_xticks(np.arange(0, T+2, 1))
+ax.set_yticks(np.arange(0, np.amax(base_load), 10))
+# Plot
+plt.step(np.arange(0,T+2,1), base_load, label='Initial load')
+plt.step(np.arange(0,T+2,1), aggregate_load, label='Aggregate load')
+plt.legend(loc='best')
+plt.xlabel("Time")
+plt.ylabel("Load")
+plt.title("Variation of Total Load")
+plt.grid()
+plt.show()
