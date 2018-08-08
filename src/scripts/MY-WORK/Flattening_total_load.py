@@ -50,7 +50,7 @@ import matplotlib.pyplot as plt
 
 ''' TOU rates information '''
 
-df_tou = pd.read_csv('../data/tou.csv', sep=',')
+df_tou = pd.read_csv('../../data/MY-WORK/tou.csv', sep=',')
 price = np.array(df_tou)
 
 # Set the number of time intervals
@@ -63,7 +63,7 @@ delta = 1
 
 ''' Base load information '''
 
-df_base_load_collection = pd.read_csv('../data/base_load_at_transformers.csv', sep=',')
+df_base_load_collection = pd.read_csv('../../data/MY-WORK/base_load_at_transformers.csv', sep=',')
 
 # Get the number of transformers
 m = len(df_base_load_collection['Transformer'].unique())
@@ -73,17 +73,32 @@ m = len(df_base_load_collection['Transformer'].unique())
 index= range(1,m+1,1)
 columns = range(0,T,1)
 df_base_load = pd.DataFrame(index=index, columns=columns)
+
 for trans in range(0,m):
     value_set = df_base_load_collection.loc[(trans*T):((trans+1)*T - 1), 'Load'].values
     df_base_load.iloc[trans] = value_set
-# Keep a copy of the original base load profile
+
+# Keep a copy of the original base load profile of transformers separately
 df_base_load_before = df_base_load.copy()
+
+# Create a dataframe to hold the total base load across all transformers
+index = range(0,T,1)
+columns = ['Total load']
+df_total_base_load = pd.DataFrame(index=pd.Index(index,name='Time'), columns=columns)
+
+for t in range(0,T):
+    df_total_base_load.loc[t] = 0
+    for trans in range(0, m):
+        df_total_base_load.loc[t,'Total load'] +=  df_base_load.iloc[trans, t]
+
+# Keep a copy of the original total base load profile
+df_total_base_load_before = df_total_base_load.copy()
 
 
 
 ''' EV information '''
 
-df_ev = pd.read_csv('../data/ev.csv', sep=',')
+df_ev = pd.read_csv('../../data/MY-WORK/ev.csv', sep=',')
 # Set the number of EVs
 N = df_ev.shape[0]
 
@@ -164,13 +179,13 @@ for ev in range(1, N + 1):
 
         for t in range(0, T):
             if t < t_start:
-                total_load_before_plugin = (df_base_load.iloc[transformer[ev]-1,t]) ** 2
+                total_load_before_plugin = (df_total_base_load.loc[t,'Total load']) ** 2
             elif t_start <= t <= (t_start + t_length[ev] - 1):
-                total_load_while_plugin = (p_max[ev] + df_base_load.iloc[transformer[ev]-1,t]) ** 2
+                total_load_while_plugin = (p_max[ev] + df_total_base_load.loc[t,'Total load']) ** 2
             elif t >= (t_start + t_length[ev]):
-                total_load_after_plugin = (df_base_load.iloc[transformer[ev]-1,t]) ** 2
+                total_load_after_plugin = (df_total_base_load.loc[t,'Total load']) ** 2
 
-        total_load += total_load_before_plugin + total_load_while_plugin + total_load_after_plugin
+        total_load += (total_load_before_plugin + total_load_while_plugin + total_load_after_plugin)
 
         if total_load < optimal_total_load:
             optimal_total_load = total_load
@@ -179,6 +194,7 @@ for ev in range(1, N + 1):
     # Update the base load
     for t in range(df_ev.loc[ev,'Optimal start time'], t_start + t_length[ev] - 1):
         df_base_load.iloc[transformer[ev]-1, t] += p_max[ev]
+        df_total_base_load.loc[t, 'Total load'] += p_max[ev]
 
 # Extract the optimal starting time of EVs to an array
 optimal_start_time = df_ev["Optimal start time"]
@@ -188,14 +204,24 @@ print(optimal_start_time)
 
 
 
-''' Plot graphs for load variation at transformers separately '''
+''' Print results '''
+new_index = ['[{0}-{1}]'.format(x, x+1) for x in range(0,T)]
+before_load = np.array(df_total_base_load_before['Total load'])
+after_load = np.array(df_total_base_load['Total load'])
+d = {'Initial load': before_load, 'Aggregate load': after_load}
+result_df = pd.DataFrame(data=d, index=pd.Index(new_index,name='Time range'))
+print(result_df)
 
-for transformer in range(0,m):
-    plt.figure()
-    figure = df_base_load_before.iloc[transformer].T.plot(label='Before')
-    figure = df_base_load.iloc[transformer].T.plot(label='After')
-    figure.legend(loc='best')
-    figure.set_xlabel("Time")
-    figure.set_ylabel("Load")
-    figure.set_title("Load Variation at Transformer " + repr(transformer+1))
-    plt.show()
+
+
+''' Plot graphs for load variation at transformers separately '''
+after = np.concatenate([[after_load[0]],after_load])
+before = np.concatenate([[before_load[0]],before_load])
+plt.title('Total Load Variation', fontsize=20)
+plt.xlabel('Time', fontsize=14)
+plt.ylabel('Aggregate load', fontsize=14)
+plt.step(np.arange(0,T+1,1), before, label='Initial load')
+plt.step(np.arange(0,T+1,1), after, label='Aggregated load')
+plt.legend()
+plt.show()
+
