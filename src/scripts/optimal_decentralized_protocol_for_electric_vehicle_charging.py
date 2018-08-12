@@ -30,7 +30,7 @@ import time
 # 0 ,  1,  2,  3,  4,  5, ..., 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 , 23
 
 # Number of EVs
-N = 90
+N = 50
 
 # Time horizon
 T = 24
@@ -202,21 +202,26 @@ def generate_ev_data(no_of_records):
     # 3) Plug-in times of EVs
     plug_in_times = []
     for i in range(no_of_records):
-        plug_in_times.append(int(round(generate_random_value(5, 2))))
+        plug_in_times.append(int(round(generate_random_value(5, 1))))
     # 4) Plug-out times of EVs
     plug_out_times = []
     for i in range(no_of_records):
         plug_out_times.append(int(round(generate_random_value(19, 1))))
 
+    # Required SoC at plug-out time is assumed be 80% of the total capacity to avoid premature aging
+    # 6) SoC of EVs departure
+    soc_at_departure = [0.8] * no_of_records
+
     # SoC at the plug-in time is assumed Gaussian with a mean of o.5 and a standard deviation of 0.1
     # 5) SoC of EVs at arrival
     soc_at_arrival = []
     for i in range(no_of_records):
-        soc_at_arrival.append(generate_random_value(0.5, 0.1))
-
-    # Required SoC at plug-out time is assumed be 80% of the total capacity to avoid premature aging
-    # 6) SoC of EVs departure
-    soc_at_departure = [0.8] * no_of_records
+        # To ensure that soc at arrival is always less than soc at departure
+        while True:
+            soc_in = generate_random_value(0.5, 0.1)
+            if soc_in < soc_at_departure[i]:
+                break
+        soc_at_arrival.append(soc_in)
 
     # 7) Battery capacities of EVs
     capacities = []
@@ -231,9 +236,6 @@ def generate_ev_data(no_of_records):
     # 8) Charging efficiency is assumed 100%
     efficiencies = [1] * no_of_records
 
-    # bus_numbers = ['101', '102', '36', '40']
-    # bus_names = ['NUC_A', 'NUC_B', 'CATDOG', 'HYDRO_A']
-    # voltage = [.99, 1.02, 1.01, 1.00]
 
     # Write to data/ev.csv
     # --------------------
@@ -261,6 +263,7 @@ def generate_ev_data(no_of_records):
 
 ''' Base load '''
 
+# Data is in MW
 df_base_load = pd.read_csv('../data/base_load_NSW.csv', sep=',')
 base_load = np.array(df_base_load['TOTALDEMAND'])
 
@@ -276,12 +279,12 @@ df_ev = pd.read_csv('../data/ev.csv', sep=',')
 soc_arr = np.array(df_ev['SOC at arrival'])
 # Desired SOC of EVs by departure
 soc_dep = np.array(df_ev['SOC at departure'])
-# Battery capacity of EVs
-cap = np.array(df_ev['Battery capacity'])
-# Amount of power required by EVs
+# Battery capacity of EVs (in MWh)
+cap = np.array(df_ev['Battery capacity'])/1000
+# Amount of power required by EVs (in MWh)
 power_req = cap * (soc_dep - soc_arr)
-# Maximum charging rate of EVs
-p_max = np.array(df_ev['Maximum power'])
+# Maximum charging rate of EVs (in MW)
+p_max = np.array(df_ev['Maximum power'])/1000
 # Plug-in time of EVs
 t_plug_in = np.array(df_ev['Plug-in time'].astype(int))
 # Plug-out time of EVs
@@ -309,7 +312,7 @@ previous_price = np.zeros(T)
 k = 0
 while True:
     # Uncomment:
-    # print('\nIteration ', k)
+    print('\nIteration ', k)
     # print('----------------------------------------')
 
     # Step ii
@@ -351,6 +354,7 @@ charging_schedules[charging_schedules < 0] = 0
 # Finishing time of the algorithm
 end_time = time.time()
 
+
 '''   Output result summary   '''
 
 result = np.around(charging_schedules, decimals=2)
@@ -359,10 +363,6 @@ for n in range(N):
     print(n + 1, '  ', t_plug_in[n] + 12, '  ', t_plug_out[n] - 12, '  ', p_max[n], '     ',
           np.around(power_req[n], decimals=2), '  ', result[n])
 
-'''   Graphical output   '''
-
-# Plot
-fig = plt.figure()
 time_horizon = base_load.shape[0]
 charging_horizon = result.shape[1]
 
@@ -375,6 +375,15 @@ for t in range(charging_horizon):
         aggregate_load[t] += result[n][t]
 for t in range(charging_horizon, time_horizon):
     aggregate_load[t] = base_load[t]
+
+print('Base load: ', base_load)
+print('Aggregate load: ', aggregate_load)
+
+
+'''   Graphical output   '''
+
+# Plot
+fig = plt.figure()
 
 # Charging rate is kept constant during each time interval, so first value of the array is repeated
 # Initial Base load
