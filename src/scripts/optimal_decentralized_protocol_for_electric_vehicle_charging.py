@@ -304,7 +304,7 @@ for n in range(N):
 
 ''' Algorithm '''
 
-# Starting time of the algorithm
+# Get the starting time of the algorithm
 start_time = time.time()
 
 # Step i
@@ -328,6 +328,7 @@ while True:
     # Each EV locally calculates a new charging profile by  solving the optimization problem
     # and reports new charging profile to utility
     new_charging_schedules = np.zeros(shape=(N, T))
+    # Stop values of all EVs should be true to terminate the algorithm
     stop = np.ones(N, dtype=bool)
     for n in range(N):
         # Uncomment:
@@ -356,7 +357,7 @@ while True:
 # Remove negative 0 values from output
 charging_schedules[charging_schedules < 0] = 0
 
-# Finishing time of the algorithm
+# Get the finishing time of the algorithm
 end_time = time.time()
 
 
@@ -368,18 +369,12 @@ for n in range(N):
     print(n + 1, '  ', t_plug_in[n] + 12, '  ', t_plug_out[n] - 12, '  ', p_max[n], '     ',
           np.around(power_req[n], decimals=2), '  ', result[n])
 
-time_horizon = base_load.shape[0]
-charging_horizon = charging_schedules.shape[1]
-
-# Change of base load
-aggregate_load = np.zeros(time_horizon)
+# Find the final aggregate load (base load + EV load)
+aggregate_load = np.zeros(T)
 aggregate_load += base_load
-
-for t in range(charging_horizon):
+for t in range(T):
     for n in range(N):
         aggregate_load[t] += charging_schedules[n][t]
-for t in range(charging_horizon, time_horizon):
-    aggregate_load[t] = base_load[t]
 
 print('Base load: ', base_load)
 print('Aggregate load: ', aggregate_load)
@@ -396,23 +391,21 @@ aggregate_load = np.insert(aggregate_load, 0, aggregate_load[0])
 # Draw graph
 # ----------
 
-# Plot
-fig = plt.figure()
-# Step graph
+# Plot step graph
 # plt.step(np.arange(0, time_horizon + 1, 1), aggregate_load, label='Aggregate load')
 # plt.step(np.arange(0, time_horizon + 1, 1), base_load, label='Initial load')
-# Smooth graph
-plt.plot(np.arange(0, time_horizon + 1, 1), aggregate_load, label='Aggregate load')
-plt.plot(np.arange(0, time_horizon + 1, 1), base_load, label='Initial load')
+# Plot smoother graph
+plt.plot(np.arange(0, T + 1, 1), aggregate_load, label='Aggregate load')
+plt.plot(np.arange(0, T + 1, 1), base_load, label='Initial load')
 # Grid lines
+plt.grid()
 plt.xticks(np.arange(25), ('12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '0', '1', '2', '3',
                            '4', '5', '6', '7', '8', '9', '10', '11', '12'))
-plt.grid()
 # Decorate graph
 plt.legend(loc='best')
 plt.xlabel("Time (12 pm to 12 am)")
 plt.ylabel("Load (kW)")
-plt.title("Variation of Total Load")
+plt.title("Optimal Decentralized Protocol for Electric Vehicle Charging")
 # Save figure
 plt.savefig('../figures/odpevc.png')
 # Show graph
