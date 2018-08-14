@@ -1,12 +1,14 @@
-# ''' Optimal Decentralized Protocol for Electric Vehicle Charging '''
-# ''' Lingwen Gan, Ufuk Topcu and Steven H. Low '''
+# ''' Optimal Decentralized Protocol for Electric Vehicle Charging (odpevc)'''
+# ''' L. Gan, U. Topcu and S. H. Low, "Optimal decentralized protocol for electric vehicle charging,"
+#     in IEEE Transactions on Power Systems, vol. 28, no. 2, pp. 940-951, May 2013. '''
+# ''' URL: http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6313962&isnumber=6504806 '''
 
 # ''' System '''
 # Objective : Minimizing charging cost while achieving Valley filling
 # Control Architecture : Decentralized Type(2)
 
 # ''' How to execute '''
-# Go to line 33, and define the number of EVs (N)
+# Go to line 35, and define the number of households that needs to be considered (H)
 # Run the script
 
 from cvxpy import *
@@ -29,34 +31,39 @@ import time
 # Following values are shown in the ev.csv as well as in the calculation
 # 0 ,  1,  2,  3,  4,  5, ..., 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 , 23
 
+# Number of households
+H = 10
+
 # Number of EVs
-N = 50
+# 50% penetration level
+# Vehicles per household is 1.86
+N = int(H * 0.5 * 1.86)
 
 # Time horizon
 T = 24
 
+# Gamma for the algorithm
+Y = random.uniform(0, (1 / N))
+
+#  ---- Start Functions ---- #
+
 def calculate_charging_schedule(price, maximum_charging_rate, power_req, plug_in_time,
                                 plug_out_time, previous_schedule):
     """ Calculate the optimal charging schedule for an EV using Quadratic Optimization.
-
     Keyword arguments:
         price : Electricity price
-        number_of_time_slots : Charging duration
         maximum_charging_rate : Maximum allowable charging rate of the EV
         power_req : Total amount of power required by the EV
         plug_in_time : Plug-in time of EV
         plug_out_time : Plug-out time of EV
-            Note: If plug-out time is x, EV can't be charged at time x
-        previous_schedule : Charging profile of earlier nth iteration
+        previous_schedule : Charging profile of earlier (n)th iteration
     Returns:
         new_schedule : Charging profile of (n+1)th iteration (Updated charging rates during each time slot)
-
     Optimization:
         At nth iteration,
         Find x(n+1) that,
             Minimize  Σ(Charging cost + penalty term) for t=1,....,number_of_time_slots
             Minimize  Σ {<p(n), (previous_schedule)> + 1/2(new_schedule - previous_schedule)²}
-
     Assumptions:
         All EVs are available for negotiation at the beginning of scheduling period
     """
@@ -82,6 +89,7 @@ def calculate_charging_schedule(price, maximum_charging_rate, power_req, plug_in
     elif plug_out_time != T:
         constraints.append(new_schedule[plug_out_time:] == 0)
 
+
     # Solve the problem
     prob = Problem(objective, constraints)
     prob.solve()
@@ -101,24 +109,18 @@ def calculate_price_signal(base_load, charging_schedules):
     """ Calculate the price signal based on updated charging schedules of EVs.
     Price during time t is modeled as a function of total demand during time t
     Keyword arguments:
-        N : Number of EVs
-        T : Time horizon
         base_load : Non-EV load
         charging_schedule : Updated charging schedules of EVs
     Returns:
         new_price : Control signal (price) for next iteration
-
     Price function:
         U = x²/2
         U' = x
         B (beta) = 1
         Y (gamma) = 1/(NB) = 1/N
-        p(t) = YU'( base_load(t) + Σ charging_schedule ) ; n = 1,...,N   t=1,...,T
+        p(t) = Y * ( base_load(t) + Σ charging_schedule ) ; n = 1,...,N   t=1,...,T
         p(t) = (1/N)( base_load(t) + Σ charging_schedule )
     """
-
-    # Calculate gamma
-    Y = 1 / N
 
     # Calculate total charging load of EVs at time t
     ev_load = np.zeros(T)
@@ -202,7 +204,7 @@ def generate_ev_data(no_of_records):
     # 3) Plug-in times of EVs
     plug_in_times = []
     for i in range(no_of_records):
-        plug_in_times.append(int(round(generate_random_value(5, 1))))
+        plug_in_times.append(int(round(generate_random_value(5, 2))))
     # 4) Plug-out times of EVs
     plug_out_times = []
     for i in range(no_of_records):
@@ -234,7 +236,7 @@ def generate_ev_data(no_of_records):
             capacities.append(24)
 
     # 8) Charging efficiency is assumed 100%
-    efficiencies = [1] * no_of_records
+    efficiencies = [0.85] * no_of_records
 
 
     # Write to data/ev.csv
@@ -263,9 +265,9 @@ def generate_ev_data(no_of_records):
 
 ''' Base load '''
 
-# Data is in MW
-df_base_load = pd.read_csv('../data/base_load_NSW.csv', sep=',')
-base_load = np.array(df_base_load['TOTALDEMAND'])
+# Data  is taken from https://www.sce.com/005_regul_info/eca/DOMSM11.DLP (07/06/2018)
+df_base_load = pd.read_csv('../data/base_load_southern_california_edison.csv', sep=',')
+base_load = np.array(df_base_load['BASE_LOAD_PER_HOUSEHOLD']) * H
 
 ''' EV Information '''
 
@@ -280,11 +282,13 @@ soc_arr = np.array(df_ev['SOC at arrival'])
 # Desired SOC of EVs by departure
 soc_dep = np.array(df_ev['SOC at departure'])
 # Battery capacity of EVs (in MWh)
-cap = np.array(df_ev['Battery capacity'])/1000
+cap = np.array(df_ev['Battery capacity'])
+# Charging efficiency of EVs
+efficiency = np.array(df_ev['Charging efficiency'])
 # Amount of power required by EVs (in MWh)
-power_req = cap * (soc_dep - soc_arr)
+power_req = (cap / efficiency) * (soc_dep - soc_arr)
 # Maximum charging rate of EVs (in MW)
-p_max = np.array(df_ev['Maximum power'])/1000
+p_max = np.array(df_ev['Maximum power'])
 # Plug-in time of EVs
 t_plug_in = np.array(df_ev['Plug-in time'].astype(int))
 # Plug-out time of EVs
@@ -312,7 +316,7 @@ previous_price = np.zeros(T)
 k = 0
 while True:
     # Uncomment:
-    print('\nIteration ', k)
+    # print('\nIteration ', k)
     # print('----------------------------------------')
 
     # Step ii
@@ -324,22 +328,23 @@ while True:
     # Each EV locally calculates a new charging profile by  solving the optimization problem
     # and reports new charging profile to utility
     new_charging_schedules = np.zeros(shape=(N, T))
+    stop = np.ones(N, dtype=bool)
     for n in range(N):
         # Uncomment:
         # print('For EV ', n)
         new_charging_schedules[n] = calculate_charging_schedule(price, p_max[n], power_req[n], t_plug_in[n],
                                                                 t_plug_out[n], charging_schedules[n])
 
-    # Stopping criterion
-    # sqrt{(p(k) - p(k-1))²} <= 0.001, for t=1,...,T
-    stop = True
-    for t in range(T):
-        deviation = np.sqrt((price[t] - previous_price[t]) ** 2)
-        if deviation > 0.001:
-            stop = False
-            break
+        # Stopping criterion
+        # sqrt{(p(k) - p(k-1))²} <= 0.001, for t=1,...,T
+        stop[n] = True
+        for t in range(T):
+            deviation = np.sqrt((price[t] - previous_price[t]) ** 2)
+            if deviation > 0.001:
+                stop[n] = False
+                break
 
-    if stop:
+    if np.all(stop):
         break
     else:
         # Step iV
@@ -364,7 +369,7 @@ for n in range(N):
           np.around(power_req[n], decimals=2), '  ', result[n])
 
 time_horizon = base_load.shape[0]
-charging_horizon = result.shape[1]
+charging_horizon = charging_schedules.shape[1]
 
 # Change of base load
 aggregate_load = np.zeros(time_horizon)
@@ -372,7 +377,7 @@ aggregate_load += base_load
 
 for t in range(charging_horizon):
     for n in range(N):
-        aggregate_load[t] += result[n][t]
+        aggregate_load[t] += charging_schedules[n][t]
 for t in range(charging_horizon, time_horizon):
     aggregate_load[t] = base_load[t]
 
@@ -381,9 +386,6 @@ print('Aggregate load: ', aggregate_load)
 
 
 '''   Graphical output   '''
-
-# Plot
-fig = plt.figure()
 
 # Charging rate is kept constant during each time interval, so first value of the array is repeated
 # Initial Base load
@@ -394,25 +396,28 @@ aggregate_load = np.insert(aggregate_load, 0, aggregate_load[0])
 # Draw graph
 # ----------
 
-# Round off to nearest multiple of 200
-lower_bound = roundoff(np.amin(base_load), 200)
-upper_bound = roundoff(np.amax(base_load), 200)
-
 # Plot
-plt.step(np.arange(0, time_horizon + 1, 1), aggregate_load, label='Aggregate load')
-plt.step(np.arange(0, time_horizon + 1, 1), base_load, label='Initial load')
-
+fig = plt.figure()
+# Step graph
+# plt.step(np.arange(0, time_horizon + 1, 1), aggregate_load, label='Aggregate load')
+# plt.step(np.arange(0, time_horizon + 1, 1), base_load, label='Initial load')
+# Smooth graph
+plt.plot(np.arange(0, time_horizon + 1, 1), aggregate_load, label='Aggregate load')
+plt.plot(np.arange(0, time_horizon + 1, 1), base_load, label='Initial load')
 # Grid lines
 plt.xticks(np.arange(25), ('12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '0', '1', '2', '3',
                            '4', '5', '6', '7', '8', '9', '10', '11', '12'))
-plt.yticks(np.arange(lower_bound, upper_bound, 200))
-
+plt.grid()
+# Decorate graph
 plt.legend(loc='best')
 plt.xlabel("Time (12 pm to 12 am)")
-plt.ylabel("Load")
+plt.ylabel("Load (kW)")
 plt.title("Variation of Total Load")
-plt.grid()
+# Save figure
+plt.savefig('../figures/odpevc.png')
+# Show graph
 plt.show()
+# Close
 plt.close()
 
 ''' Time spent for the execution of algorithm '''
