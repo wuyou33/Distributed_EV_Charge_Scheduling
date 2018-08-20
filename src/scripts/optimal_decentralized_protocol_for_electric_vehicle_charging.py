@@ -17,6 +17,7 @@
 
 
 from cvxpy import *
+from cvxpy import Variable as V, Problem as PB, sum_squares as SS, Minimize as MIN, sum as SM
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -24,7 +25,6 @@ import scipy.stats as sp
 import csv
 import random
 import time
-
 
 #  ---- Start Functions ---- #
 
@@ -50,6 +50,7 @@ T = 24
 # Gamma for the algorithm
 Y = random.uniform(0, (1 / N))
 
+
 #  ---- Start Functions ---- #
 
 def calculate_charging_schedule(price, maximum_charging_rate, power_req, plug_in_time,
@@ -74,10 +75,10 @@ def calculate_charging_schedule(price, maximum_charging_rate, power_req, plug_in
     """
 
     # Define variables for new charging rates during each time slot
-    new_schedule = Variable(T)
+    new_schedule = V(T)
 
     # Define Objective function
-    objective = Minimize(sum(price * new_schedule) + 0.5 * sum_squares(new_schedule - previous_schedule))
+    objective = MIN(SM(price * new_schedule) + 0.5 * SS(new_schedule - previous_schedule))
 
     # Define constraints list
     constraints = []
@@ -94,9 +95,8 @@ def calculate_charging_schedule(price, maximum_charging_rate, power_req, plug_in
     elif plug_out_time != T:
         constraints.append(new_schedule[plug_out_time:] == 0)
 
-
     # Solve the problem
-    prob = Problem(objective, constraints)
+    prob = PB(objective, constraints)
     prob.solve()
 
     # Solution
@@ -173,7 +173,7 @@ def generate_random_value(mean, standard_deviation):
     generated_number = round(norm1.rvs(), 2)
     # To prevent negative values
     if generated_number < 0:
-        generated_number = (-1)*generated_number
+        generated_number = (-1) * generated_number
     return generated_number
 
 
@@ -243,7 +243,6 @@ def generate_ev_data(no_of_records):
     # 8) Charging efficiency is assumed 100%
     efficiencies = [0.85] * no_of_records
 
-
     # Write to data/ev.csv
     # --------------------
 
@@ -299,13 +298,11 @@ t_plug_in = np.array(df_ev['Plug-in time'].astype(int))
 # Plug-out time of EVs
 t_plug_out = np.array(df_ev['Plug-out time'].astype(int))
 
-
 # Check feasibility of charging
 for n in range(N):
     if (t_plug_out[n] - t_plug_in[n]) < (power_req[n] / p_max[n]):
         print('Solution is not feasible')
         break;
-
 
 ''' Algorithm '''
 
@@ -365,7 +362,6 @@ charging_schedules[charging_schedules < 0] = 0
 # Get the finishing time of the algorithm
 end_time = time.time()
 
-
 '''   Output result summary   '''
 
 result = np.around(charging_schedules, decimals=2)
@@ -383,7 +379,6 @@ for t in range(T):
 
 print('Base load: ', base_load)
 print('Aggregate load: ', aggregate_load)
-
 
 '''   Graphical output   '''
 

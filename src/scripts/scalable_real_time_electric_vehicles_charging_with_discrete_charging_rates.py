@@ -15,7 +15,7 @@
 #   : optimal_start_time [n]
 
 
-from cvxpy import *
+from cvxpy import Minimize, Problem
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -36,7 +36,7 @@ import math as mth
 # 0 ,  1,  2,  3,  4,  5, ..., 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 , 23
 
 # Number of households
-H = 10000
+H = 100
 
 # Number of EVs
 # 50% penetration level
