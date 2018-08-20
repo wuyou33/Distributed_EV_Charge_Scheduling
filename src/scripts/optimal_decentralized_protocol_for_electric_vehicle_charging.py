@@ -41,8 +41,6 @@ from . import constants
 H = constants.HOUSES
 
 # Number of EVs
-# 50% penetration level
-# Vehicles per household is 1.86
 N = int(H * constants.PENETRATION * constants.EVS_PER_HOUSEHOLD)
 
 # Time horizon

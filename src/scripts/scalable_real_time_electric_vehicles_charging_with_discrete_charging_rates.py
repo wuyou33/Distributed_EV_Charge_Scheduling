@@ -24,6 +24,7 @@ import csv
 import random
 import time
 import math as mth
+from . import constants
 
 #  ---- Start Functions ---- #
 
@@ -36,15 +37,13 @@ import math as mth
 # 0 ,  1,  2,  3,  4,  5, ..., 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 , 23
 
 # Number of households
-H = 100
+H = constants.HOUSES
 
 # Number of EVs
-# 50% penetration level
-# Vehicles per household is 1.86
-N = int(H * 0.5 * 1.86)
+N = int(H * constants.PENETRATION * constants.EVS_PER_HOUSEHOLD)
 
 # Time horizon
-T = 24
+T = constants.TIME_HORIZON
 
 
 def roundoff(number, multiple):
@@ -249,7 +248,7 @@ for n in range(N):
             optimal_start_time[n] = t_start
 
     # Update the base load
-    for t in range(optimal_start_time[n], (optimal_start_time[n] + t_length[n] -1)):
+    for t in range(optimal_start_time[n], (optimal_start_time[n] + t_length[n] - 1)):
         base_load[t] += p_max[n]
 
 # Get the finishing time of the algorithm

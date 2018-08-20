@@ -29,11 +29,14 @@ from . import constants
 # Following values are shown in the ev.csv as well as in the calculation
 # 0 ,  1,  2,  3,  4,  5, ..., 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 , 23
 
+# Number of households
+H = constants.HOUSES
+
 # Number of EVs
-N = 10
+N = int(H * constants.PENETRATION * constants.EVS_PER_HOUSEHOLD)
 
 # Time horizon
-T = 24
+T = constants.TIME_HORIZON
 
 
 #  ---- Start Functions ---- #
