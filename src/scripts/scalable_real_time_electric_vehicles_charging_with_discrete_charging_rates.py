@@ -7,8 +7,8 @@
 # Control Architecture : Decentralized Type(2)
 
 # ''' How to execute '''
-# Go to line 40, and define the number of EVs (N)
-# Run the script
+# Go to constants.py script, and define the parameters.
+# Then run the following script.
 
 # ''' Output '''
 # Charging schedules of EVs are defined by the starting time for charging each EV
@@ -24,7 +24,7 @@ import csv
 import random
 import time
 import math as mth
-from . import constants
+from src.scripts import constants
 
 #  ---- Start Functions ---- #
 

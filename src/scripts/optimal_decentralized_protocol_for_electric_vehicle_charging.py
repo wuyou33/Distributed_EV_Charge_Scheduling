@@ -8,15 +8,14 @@
 # Control Architecture : Decentralized Type(2)
 
 # ''' How to execute '''
-# Go to line 40, and define the number of households that needs to be considered (H)
-# Run the script
+# Go to constants.py script, and define the parameters.
+# Then run the following script.
 
 # ''' Output '''
 # Charging schedules of EVs are defined by the charging rates of EVs during each time interval.
 #   : charging_schedules[n][t]
 
 
-from cvxpy import *
 from cvxpy import Variable as V, Problem as PB, sum_squares as SS, Minimize as MIN, sum as SM
 import numpy as np
 import pandas as pd
@@ -25,7 +24,7 @@ import scipy.stats as sp
 import csv
 import random
 import time
-from . import constants
+from src.scripts import constants
 
 #  ---- Start Functions ---- #
 
@@ -68,7 +67,7 @@ def calculate_charging_schedule(price, maximum_charging_rate, power_req, plug_in
         At nth iteration,
         Find x(n+1) that,
             Minimize  Σ(Charging cost + penalty term) for t=1,....,number_of_time_slots
-            Minimize  Σ {<p(n), (previous_schedule)> + 1/2(new_schedule - previous_schedule)²}
+            Minimize  Σ {<p(t), (new_schedule)> + 1/2(new_schedule - previous_schedule)²}
     Assumptions:
         All EVs are available for negotiation at the beginning of scheduling period
     """

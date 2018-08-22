@@ -8,8 +8,13 @@
 # Control Architecture : Decentralized Type(2)
 
 # ''' How to execute '''
-# Go to line 33, and define the number of EVs (N)
-# Run the script
+# Go to constants.py script, and define the parameters.
+# Then run the following script.
+
+# ''' Output '''
+# Charging schedules of EVs are defined by the charging rates of EVs during each time interval.
+#   : charging_schedules[n][t]
+
 
 from cvxpy import Variable as V, Problem as PB, sum_squares as SS, Minimize as MIN, sum as SM
 import numpy as np
