@@ -15,7 +15,6 @@
 #   : optimal_start_time [n]
 
 
-from cvxpy import Minimize, Problem
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -254,16 +253,50 @@ for n in range(N):
 # Get the finishing time of the algorithm
 end_time = time.time()
 
+
+
 '''   Output result summary   '''
 
 result = np.around(optimal_start_time)
-print('\n\nEV   In   Out   Max_power Power  Schedule t=(0,...,', T - 1, ')')
+print('\nEV   In   Out   Max_power Power  Schedule t=(0,...,', T - 1, ')')
 for n in range(N):
     print(n + 1, '  ', (t_plug_in[n] + 12), '  ', (t_plug_out[n] - 12), '  ', p_max[n], '     ',
           np.around(power_req[n], decimals=2), '  ', (result[n] - 12), ':', t_length[n])
 
-print('Base load: ', base_load_original)
-print('Aggregate load: ', base_load)
+print('\nBase load: ', base_load_original)
+print('\nAggregate load: ', base_load)
+
+
+
+'''   Comparison Parameters   '''
+
+print("\n--- Performance of the Algorithm ---")
+
+# 1. Peak
+peak = np.amax(base_load)
+print("PEAK: ", peak, 'kW')
+
+# 2. Maximum variance
+variance = 0
+average_aggregate_load = np.mean(base_load)
+for t in range(T):
+    new_variance = (base_load[t] - average_aggregate_load) ** 2
+    if new_variance > variance:
+        variance = new_variance
+print("VARIANCE: ", variance, 'KW²')
+
+# 3. PAR
+par = peak / average_aggregate_load
+print("PAR: ", par)
+
+# 4. Number of iterations (if any)
+print("NUMBER OF ITERATIONS: ", 0)
+
+# 5. Computational time
+execution_time = end_time - start_time
+print("EXECUTION TIME: ", execution_time, 's')
+
+
 
 '''   Graphical output   '''
 
@@ -299,7 +332,3 @@ plt.savefig('../figures/srtevcwdcr.png')
 plt.show()
 # Close
 plt.close()
-
-''' Time spent for the execution of algorithm '''
-
-print('\nTime spent for the execution of the algorithm: ', (end_time - start_time), 'seconds.')
