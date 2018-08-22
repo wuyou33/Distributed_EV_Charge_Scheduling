@@ -378,6 +378,38 @@ for t in range(T):
 print('Base load: ', base_load)
 print('Aggregate load: ', aggregate_load)
 
+
+
+'''   Comparison Parameters   '''
+
+print("\n--- Performance of the Algorithm ---")
+
+# 1. Peak
+peak = np.amax(aggregate_load)
+print("PEAK: ", peak, 'kW')
+
+# 2. Maximum variance
+variance = 0
+average_aggregate_load = np.mean(aggregate_load)
+for t in range(T):
+    new_variance = (aggregate_load[t] - average_aggregate_load) ** 2
+    if new_variance > variance:
+        variance = new_variance
+print("VARIANCE: ", variance, 'KW²')
+
+# 3. PAR
+par = peak / average_aggregate_load
+print("PAR: ", par)
+
+# 4. Number of iterations (if any)
+print("NUMBER OF ITERATIONS: ", k)
+
+# 5. Computational time
+execution_time = end_time - start_time
+print("EXECUTION TIME: ", execution_time, 's')
+
+
+
 '''   Graphical output   '''
 
 # Charging rate is kept constant during each time interval, so first value of the array is repeated
