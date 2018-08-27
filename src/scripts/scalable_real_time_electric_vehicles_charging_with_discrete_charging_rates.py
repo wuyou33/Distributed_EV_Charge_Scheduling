@@ -222,28 +222,43 @@ optimal_start_time = np.zeros(N).astype(int)
 for n in range(N):
 
     # Starting criterion for optimal aggregate load check
-    optimal_total_load = mth.inf
+    optimal_utility = mth.inf
 
     # Iterate through all possible time values to find the optimal start time that minimizes
     # the variance of the total load
     for t_start in range(t_plug_in[n], t_plug_out[n]):
 
-        # Objective function: Variance of ev : Summation (t=1..T) [ B(t) + P(t)] ^ 2
-        # Total load (non-EV load + EV load)
-        total_load = 0
+        # Objective function: Minimize (Variance + maximum peak load)
+        #                   : Minimize (Summation (t=1..T) [ B(t) + p(t) - Mean] ^ 2 + alpha * Max [B(t) + p(t)])
+
+        # Calculate mean
+        mean = (np.sum(base_load) + t_length[n] * p_max[n]) / T
+
+        # Remaining power to charge
+        remaining_power = power_req[n]
+        # Calculate the utility, if charging is started at t_start
+        utility = 0
         for t in range(0, T):
             # Before charging starts
             if t < t_start:
-                total_load += (base_load[t] ** 2)
+                utility += (((base_load[t] - mean) ** 2) / T)
             # During charging
             elif t_start <= t < (t_start + t_length[n]):
-                total_load += ((p_max[n] + base_load[t]) ** 2)
+                if remaining_power >= p_max[n]:
+                    utility += (((p_max[n] + base_load[t] - mean) ** 2) / T)
+                    remaining_power -= p_max[n]
+                else:
+                    utility += (((remaining_power + base_load[t] - mean) ** 2) / T)
             # After charging completes
             else:
-                total_load += (base_load[t] ** 2)
+                utility += (((base_load[t] - mean) ** 2)) / T
 
-        if total_load < optimal_total_load:
-            optimal_total_load = total_load
+        # Maximum possible peak that can occur, alpha = 1000
+        alpha = 1000
+        utility += (alpha * (np.max(base_load) + p_max[n]))
+
+        if utility < optimal_utility:
+            optimal_utility = utility
             optimal_start_time[n] = t_start
 
     # Update the base load
@@ -253,20 +268,17 @@ for n in range(N):
 # Get the finishing time of the algorithm
 end_time = time.time()
 
-
-
 '''   Output result summary   '''
 
 result = np.around(optimal_start_time)
-print('\nEV   In   Out   Max_power Power  Schedule t=(0,...,', T - 1, ')')
+print('\nEV   In   Out   Maximum power  Power required  Time Slots Schedule t=(0,...,', T - 1, ')')
 for n in range(N):
-    print(n + 1, '  ', (t_plug_in[n] + 12), '  ', (t_plug_out[n] - 12), '  ', p_max[n], '     ',
-          np.around(power_req[n], decimals=2), '  ', (result[n] - 12), ':', t_length[n])
+    print(n + 1, '  ', (t_plug_in[n] + 12), '  ', (t_plug_out[n] - 12), '  ', p_max[n], '          ',
+          np.around(power_req[n], decimals=2), '          ', t_length[n], '        ',(result[n] - 12), ':',
+          (result[n] - 12 + t_length[n]))
 
 print('\nBase load: ', base_load_original)
 print('\nAggregate load: ', base_load)
-
-
 
 '''   Comparison Parameters   '''
 
@@ -295,8 +307,6 @@ print("NUMBER OF ITERATIONS: ", 0)
 # 5. Computational time
 execution_time = end_time - start_time
 print("EXECUTION TIME: ", execution_time, 's')
-
-
 
 '''   Graphical output   '''
 
